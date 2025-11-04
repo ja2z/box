@@ -3,10 +3,17 @@ description:
 globs: 
 alwaysApply: true
 ---
-This purpose of this project is to build a Sigma plugin that renders a widget. There is a separate React file for the iframe component.
+This purpose of this project is to build a Sigma plugin that renders a box and whisker plot. There is a separate React file for the iframe component. Use the library Apache Echarts "boxplot"
 
-In the configuration panel there are two dropdown selectors :
-1. widgetColor
-2. widgetSize
+In the configuration panel the user should be able to select a single data source. There should be column selection options to map columns to the following fields:
+
+1. attribute (this is the grouping key on the x axis. Each group has one box/whisker combo.
+2. Min value (bottom of the whisker)
+3. Max value (top of the whisker)
+4. Median - this is the center line of the box
+5. quartile1 - this is the bottom of the box
+6. quartile2 - this is the top of the box
+
+There should be a tooltip showing all of the above values.
 
 Practice don't repeat yourself. Use Typescript. Comment your code.
