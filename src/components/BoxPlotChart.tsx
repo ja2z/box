@@ -73,6 +73,59 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
   const orientation = config.orientation || 'vertical';
   const isHorizontal = orientation === 'horizontal';
   
+  /**
+   * Round a number to a "nice" value for axis labels
+   * Rounds to the nearest nice step (1, 2, 5, 10, 20, 50, 100, etc. times a power of 10)
+   * This ensures axis labels are consistent and readable
+   */
+  const roundToNiceNumber = (value: number, roundUp: boolean = true): number => {
+    if (!isFinite(value) || value === 0) return value;
+    
+    const sign = value < 0 ? -1 : 1;
+    const absValue = Math.abs(value);
+    
+    // Handle very small numbers
+    if (absValue < 1) {
+      const magnitude = Math.floor(Math.log10(absValue));
+      const base = Math.pow(10, magnitude);
+      const normalized = absValue / base;
+      const niceStep = normalized <= 1 ? 1 : normalized <= 2 ? 2 : normalized <= 5 ? 5 : 10;
+      if (roundUp) {
+        return sign * Math.ceil(normalized / niceStep) * niceStep * base;
+      } else {
+        return sign * Math.floor(normalized / niceStep) * niceStep * base;
+      }
+    }
+    
+    // Find the order of magnitude (power of 10)
+    const magnitude = Math.floor(Math.log10(absValue));
+    const base = Math.pow(10, magnitude);
+    
+    // Normalize the value to the base (e.g., 4893.58 -> 4.89358 with base 1000)
+    const normalized = absValue / base;
+    
+    // Choose a nice step: prefer 1, 2, 5, then 10
+    let niceStep: number;
+    if (normalized <= 1) {
+      niceStep = 1;
+    } else if (normalized <= 2) {
+      niceStep = 2;
+    } else if (normalized <= 5) {
+      niceStep = 5;
+    } else {
+      niceStep = 10;
+    }
+    
+    // Round to the nice step
+    if (roundUp) {
+      const rounded = Math.ceil(normalized / niceStep) * niceStep * base;
+      return sign * rounded;
+    } else {
+      const rounded = Math.floor(normalized / niceStep) * niceStep * base;
+      return sign * rounded;
+    }
+  };
+
   // Calculate global min/max across all boxplots and add minimal padding for measure axis
   // This ensures all whiskers are fully visible without excessive blank space
   const measureAxisConfig = useMemo(() => {
@@ -124,9 +177,15 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
         calculatedMin = 0;
       }
 
+      // Round max to a nice number for consistent axis labels
+      // This ensures the last axis label matches the pattern of other labels (e.g., 1000, 2000, 3000, 4000, 5000)
+      const roundedMax = roundToNiceNumber(calculatedMax, true);
+      // Also round min down to a nice number for consistency
+      const roundedMin = roundToNiceNumber(calculatedMin, false);
+
       return {
-        min: calculatedMin,
-        max: calculatedMax,
+        min: roundedMin,
+        max: roundedMax,
       };
     }
 
