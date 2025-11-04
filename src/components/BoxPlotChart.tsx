@@ -278,7 +278,7 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
     return (value: string) => {
       if (!value) return '';
       if (value.length > maxCharsPerCategory) {
-        return value.substring(0, maxCharsPerCategory - 1) + 'â€¦';
+        return value.substring(0, maxCharsPerCategory - 3) + '...';
       }
       return value;
     };
