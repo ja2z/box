@@ -175,6 +175,12 @@ client.config.configureEditorPanel([
     source: 'formattingGroup',
     label: 'Grid Line Color',
   },
+  {
+    name: 'backgroundColor',
+    type: 'color',
+    source: 'formattingGroup',
+    label: 'Background Color',
+  },
 ]);
 
 // Extended column info interface to include formatting
@@ -212,6 +218,7 @@ interface BoxPlotConfig {
   measureAxisBold?: boolean;
   gridLines?: boolean;
   gridLineColor?: string;
+  backgroundColor?: string;
 }
 
 function App() {

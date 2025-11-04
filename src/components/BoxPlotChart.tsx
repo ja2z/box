@@ -36,6 +36,7 @@ interface BoxPlotChartProps {
     measureAxisBold?: boolean;
     gridLines?: boolean;
     gridLineColor?: string;
+    backgroundColor?: string;
   };
 }
 
@@ -208,6 +209,8 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
   const measureAxisBold = config.measureAxisBold === true;
   const gridLines = config.gridLines !== false; // Default to true
   const gridLineColor = config.gridLineColor || measureAxisFontColor;
+  const backgroundColor = config.backgroundColor || '#ffffff';
+
 
   // Container ref to get actual dimensions for responsive truncation
   const containerRef = useRef<HTMLDivElement>(null);
@@ -240,7 +243,7 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
     let maxCharsPerCategory: number;
     
     if (isVertical) {
-      // For 90° labels: text extends vertically downward
+      // For 90Â° labels: text extends vertically downward
       // Limit labels to a percentage of chart height to prevent squishing
       const maxLabelHeightPercent = 0.28; // Labels can use up to 28% of chart height
       const bottomGridPercent = attributeLabelRotation === 90 ? 0.15 : 0.08; // From grid.bottom
@@ -260,7 +263,7 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
       maxCharsPerCategory = Math.max(minChars, Math.min(maxChars, maxCharsPerCategory));
       
     } else {
-      // For horizontal (0°) labels: use width-based calculation
+      // For horizontal (0Â°) labels: use width-based calculation
       const availableWidthPercent = 100 - (chartPadding * 2);
       const pixelsPerChar = attributeAxisFontSize * 0.65;
       const effectiveWidth = containerWidth * (availableWidthPercent / 100);
@@ -275,7 +278,7 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
     return (value: string) => {
       if (!value) return '';
       if (value.length > maxCharsPerCategory) {
-        return value.substring(0, maxCharsPerCategory - 1) + '…';
+        return value.substring(0, maxCharsPerCategory - 1) + 'â€¦';
       }
       return value;
     };
@@ -284,6 +287,7 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
   // ECharts configuration option
   const option: EChartsOption = useMemo(() => {
     return {
+      backgroundColor: backgroundColor,
       animation: true,
       animationDuration: 1200,
       animationEasing: 'elasticOut',
@@ -536,6 +540,7 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
     measureAxisBold,
     gridLines,
     gridLineColor,
+    backgroundColor,
     createSmartTruncationFormatter,
   ]);
 
