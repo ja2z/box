@@ -211,6 +211,12 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
   const gridLineColor = config.gridLineColor || measureAxisFontColor;
   const backgroundColor = config.backgroundColor || '#ffffff';
 
+  // Calculate minimum padding to prevent measure axis labels from being cut off
+  // Based on font size: estimate ~4% minimum to accommodate label text
+  // This ensures labels have space even when user sets padding to 0
+  const minPaddingForLabels = Math.max(3.5, (measureAxisFontSize / 12) * 3.5);
+  const effectivePadding = Math.max(chartPadding, minPaddingForLabels);
+
 
   // Container ref to get actual dimensions for responsive truncation
   const containerRef = useRef<HTMLDivElement>(null);
@@ -376,10 +382,21 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
         },
       },
       grid: {
-        left: `${chartPadding}%`,
-        right: `${chartPadding}%`,
-        bottom: attributeLabelRotation === 90 && !isHorizontal ? '15%' : '8%',
-        top: `${chartPadding}%`,
+        // Left padding: use effectivePadding to prevent Y-axis labels from being cut off in vertical mode
+        // Add extra space for rotated attribute labels in horizontal mode
+        left: attributeLabelRotation === 90 && isHorizontal 
+          ? `${effectivePadding + 5}%` 
+          : isHorizontal 
+            ? `${chartPadding}%` 
+            : `${effectivePadding}%`,
+        // Right padding: use effectivePadding in horizontal mode to prevent X-axis labels from being cut off
+        right: isHorizontal ? `${effectivePadding}%` : `${chartPadding}%`,
+        // Bottom padding: add extra space for rotated attribute labels in vertical mode
+        bottom: attributeLabelRotation === 90 && !isHorizontal 
+          ? `${effectivePadding + 5}%` 
+          : `${chartPadding}%`,
+        // Top padding: use effectivePadding in vertical mode to prevent Y-axis labels from being cut off
+        top: isHorizontal ? `${chartPadding}%` : `${effectivePadding}%`,
         containLabel: true,
       },
       // Conditionally swap axes based on orientation
@@ -530,6 +547,7 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
     boxFillColor,
     lineColor,
     chartPadding,
+    effectivePadding,
     banding,
     bandingColor,
     attributeAxisFontSize,
