@@ -1,4 +1,4 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import BoxPlotChart, { BoxPlotDataPoint } from './components/BoxPlotChart';
 import './App.css';
 import {
