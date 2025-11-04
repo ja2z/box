@@ -37,6 +37,7 @@ interface BoxPlotChartProps {
     gridLines?: boolean;
     gridLineColor?: string;
     backgroundColor?: string;
+    boxWidth?: string;
   };
 }
 
@@ -53,6 +54,7 @@ interface BoxPlotChartProps {
  * - Customizable colors, fonts, and styling
  * - Responsive design with automatic resizing
  * - Interactive tooltips with formatted values
+ * - Configurable box width and gap spacing
  */
 const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
   data,
@@ -211,6 +213,21 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
   const gridLineColor = config.gridLineColor || measureAxisFontColor;
   const backgroundColor = config.backgroundColor || '#ffffff';
 
+  // Map box width values (1-10) to percentages
+  // Values range from 25% (narrowest) to 95% (widest)
+  const boxWidthMap: Record<string, string> = {
+    '1': '25%',
+    '2': '40%',
+    '3': '50%',
+    '4': '65%', // Default value
+    '5': '75%',
+    '6': '90%',
+  };
+  const boxWidth = boxWidthMap[config.boxWidth || '4'] || '65%';
+
+  // Fixed gap width set to 'regular' (40%) - this setting was removed from config
+  const barCategoryGap = '40%';
+
   // Calculate minimum padding to prevent measure axis labels from being cut off
   // Based on font size: estimate ~4% minimum to accommodate label text
   // This ensures labels have space even when user sets padding to 0
@@ -238,47 +255,70 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
     return () => window.removeEventListener('resize', updateDimensions);
   }, []);
 
-  // Smart truncation formatter with proper height-based calculation for vertical labels
+  // Smart truncation formatter with orientation-aware calculation
   const createSmartTruncationFormatter = useMemo(() => {
     const numCategories = categories.length;
     if (numCategories === 0) {
       return (value: string) => value || '';
     }
 
-    const isVertical = attributeLabelRotation === 90;
+    const isRotated = attributeLabelRotation === 90;
     let maxCharsPerCategory: number;
+    const pixelsPerChar = attributeAxisFontSize * 0.65; // Base character width estimation
     
-    if (isVertical) {
-      // For 90Â° labels: text extends vertically downward
-      // Limit labels to a percentage of chart height to prevent squishing
-      const maxLabelHeightPercent = 0.28; // Labels can use up to 28% of chart height
-      const bottomGridPercent = attributeLabelRotation === 90 ? 0.15 : 0.08; // From grid.bottom
-      
-      // Calculate available height for the chart area (excluding labels)
-      const availableChartHeight = containerHeight * (1 - bottomGridPercent);
-      const maxLabelHeight = availableChartHeight * maxLabelHeightPercent;
-      
-      // Each character takes roughly fontSize pixels vertically
-      // Add small buffer for spacing and ellipsis
-      const pixelsPerChar = attributeAxisFontSize * 1.1;
-      maxCharsPerCategory = Math.floor(maxLabelHeight / pixelsPerChar);
-      
-      // Set reasonable bounds for vertical labels
-      const minChars = 10;
-      const maxChars = 50; // Reasonable maximum to prevent excessive labels
-      maxCharsPerCategory = Math.max(minChars, Math.min(maxChars, maxCharsPerCategory));
-      
+    // Calculate max chars based on orientation and rotation combination
+    if (isHorizontal) {
+      // HORIZONTAL CHART: Attribute labels are on Y-axis (left side)
+      if (isRotated) {
+        // 90° rotation: Labels extend vertically upward along Y-axis
+        // Divide available height among categories
+        const availableHeightPercent = 100 - (chartPadding * 2);
+        const effectiveHeight = containerHeight * (availableHeightPercent / 100);
+        const pixelsPerCategory = effectiveHeight / numCategories;
+        const verticalPixelsPerChar = attributeAxisFontSize * 1.1;
+        maxCharsPerCategory = Math.floor((pixelsPerCategory * 0.85) / verticalPixelsPerChar);
+        
+        const minChars = 8;
+        const maxChars = 40;
+        maxCharsPerCategory = Math.max(minChars, Math.min(maxChars, maxCharsPerCategory));
+      } else {
+        // 0° rotation: Labels extend horizontally to the left
+        // Labels DON'T compete with each other - can use generous % of width
+        const maxLabelWidthPercent = 0.35; // Allow up to 35% of container width
+        const maxLabelWidth = containerWidth * maxLabelWidthPercent;
+        maxCharsPerCategory = Math.floor(maxLabelWidth / pixelsPerChar);
+        
+        const minChars = 15;
+        const maxChars = 100; // Allow very long labels
+        maxCharsPerCategory = Math.max(minChars, Math.min(maxChars, maxCharsPerCategory));
+      }
     } else {
-      // For horizontal (0Â°) labels: use width-based calculation
-      const availableWidthPercent = 100 - (chartPadding * 2);
-      const pixelsPerChar = attributeAxisFontSize * 0.65;
-      const effectiveWidth = containerWidth * (availableWidthPercent / 100);
-      const pixelsPerCategory = effectiveWidth / numCategories;
-      maxCharsPerCategory = Math.floor((pixelsPerCategory * 1.10) / pixelsPerChar);
-      
-      const minChars = 6;
-      const maxChars = 100;
-      maxCharsPerCategory = Math.max(minChars, Math.min(maxChars, maxCharsPerCategory));
+      // VERTICAL CHART: Attribute labels are on X-axis (bottom)
+      if (isRotated) {
+        // 90° rotation: Labels extend vertically downward below X-axis
+        // Limit to percentage of chart height
+        const maxLabelHeightPercent = 0.28;
+        const bottomGridPercent = 0.15; // Extra space allocated for rotated labels
+        const availableChartHeight = containerHeight * (1 - bottomGridPercent);
+        const maxLabelHeight = availableChartHeight * maxLabelHeightPercent;
+        const verticalPixelsPerChar = attributeAxisFontSize * 1.1;
+        maxCharsPerCategory = Math.floor(maxLabelHeight / verticalPixelsPerChar);
+        
+        const minChars = 10;
+        const maxChars = 50;
+        maxCharsPerCategory = Math.max(minChars, Math.min(maxChars, maxCharsPerCategory));
+      } else {
+        // 0° rotation: Labels extend horizontally below X-axis
+        // Divide available width among categories
+        const availableWidthPercent = 100 - (chartPadding * 2);
+        const effectiveWidth = containerWidth * (availableWidthPercent / 100);
+        const pixelsPerCategory = effectiveWidth / numCategories;
+        maxCharsPerCategory = Math.floor((pixelsPerCategory * 1.10) / pixelsPerChar);
+        
+        const minChars = 6;
+        const maxChars = 100;
+        maxCharsPerCategory = Math.max(minChars, Math.min(maxChars, maxCharsPerCategory));
+      }
     }
 
     return (value: string) => {
@@ -288,7 +328,7 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
       }
       return value;
     };
-  }, [categories.length, attributeLabelRotation, attributeAxisFontSize, chartPadding, containerWidth, containerHeight]);
+  }, [categories.length, attributeLabelRotation, attributeAxisFontSize, chartPadding, containerWidth, containerHeight, isHorizontal]);
 
   // ECharts configuration option
   const option: EChartsOption = useMemo(() => {
@@ -405,7 +445,7 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
         yAxis: {
           type: 'category',
           data: categories,
-          boundaryGap: [0.15, 0.15],
+          boundaryGap: true,
           nameGap: attributeLabelRotation === 90 ? 10 : 30,
           splitArea: {
             show: false,
@@ -459,7 +499,7 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
         xAxis: {
           type: 'category',
           data: categories,
-          boundaryGap: [0.15, 0.15],
+          boundaryGap: true,
           nameGap: attributeLabelRotation === 90 ? 10 : 30,
           splitArea: {
             show: false,
@@ -514,6 +554,8 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
           name: 'boxplot',
           type: 'boxplot',
           data: boxplotValues,
+          boxWidth: boxWidth as any,
+          barCategoryGap: barCategoryGap,
           itemStyle: {
             color: boxFillColor,
             borderColor: lineColor,
@@ -559,6 +601,8 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
     gridLines,
     gridLineColor,
     backgroundColor,
+    boxWidth,
+    barCategoryGap,
     createSmartTruncationFormatter,
   ]);
 

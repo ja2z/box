@@ -181,6 +181,14 @@ client.config.configureEditorPanel([
     source: 'formattingGroup',
     label: 'Background Color',
   },
+  {
+    name: 'boxWidth',
+    type: 'dropdown',
+    source: 'formattingGroup',
+    label: 'Box Width',
+    values: ['1', '2', '3', '4', '5', '6'],
+    defaultValue: '4',
+  },
 ]);
 
 // Extended column info interface to include formatting
@@ -219,6 +227,7 @@ interface BoxPlotConfig {
   gridLines?: boolean;
   gridLineColor?: string;
   backgroundColor?: string;
+  boxWidth?: string;
 }
 
 function App() {
