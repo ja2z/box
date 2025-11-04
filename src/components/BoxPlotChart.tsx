@@ -14,12 +14,13 @@ interface BoxPlotDataPoint {
 interface BoxPlotChartProps {
   /** Array of boxplot data points, one per attribute group */
   data: BoxPlotDataPoint[];
-  /** Y-axis label */
-  yAxisName?: string;
+  /** Measure axis label */
+  measureAxisName?: string;
   /** Format function for tooltip values */
   formatValue?: (value: number) => string;
   /** Configuration options from plugin config */
   config?: {
+    orientation?: string;
     attributeLabelRotation?: string;
     boxFillColor?: string;
     lineColor?: string;
@@ -27,12 +28,12 @@ interface BoxPlotChartProps {
     chartPadding?: string;
     banding?: boolean;
     bandingColor?: string;
-    xAxisFontSize?: string;
-    xAxisFontColor?: string;
-    xAxisBold?: boolean;
-    yAxisFontSize?: string;
-    yAxisFontColor?: string;
-    yAxisBold?: boolean;
+    attributeAxisFontSize?: string;
+    attributeAxisFontColor?: string;
+    attributeAxisBold?: boolean;
+    measureAxisFontSize?: string;
+    measureAxisFontColor?: string;
+    measureAxisBold?: boolean;
     gridLines?: boolean;
     gridLineColor?: string;
   };
@@ -41,12 +42,20 @@ interface BoxPlotChartProps {
 /**
  * BoxPlotChart Component
  * 
- * Renders a box and whisker plot using Apache ECharts.
- * Accepts pre-calculated quartile data and displays it as a boxplot.
+ * Renders a box and whisker plot using Apache ECharts with support for both
+ * vertical and horizontal orientations. Accepts pre-calculated quartile data
+ * and displays it with customizable styling and formatting.
+ * 
+ * Features:
+ * - Vertical or horizontal orientation
+ * - Smart label truncation based on available space
+ * - Customizable colors, fonts, and styling
+ * - Responsive design with automatic resizing
+ * - Interactive tooltips with formatted values
  */
 const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
   data,
-  yAxisName = 'Value',
+  measureAxisName = 'Value',
   formatValue = (val) => val.toLocaleString(),
   config = {},
 }) => {
@@ -60,9 +69,13 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
     return data.map((item) => item.value);
   }, [data]);
 
-  // Calculate global min/max across all boxplots and add minimal padding for y-axis
+  // Parse orientation - default to vertical
+  const orientation = config.orientation || 'vertical';
+  const isHorizontal = orientation === 'horizontal';
+  
+  // Calculate global min/max across all boxplots and add minimal padding for measure axis
   // This ensures all whiskers are fully visible without excessive blank space
-  const yAxisConfig = useMemo(() => {
+  const measureAxisConfig = useMemo(() => {
     if (boxplotValues.length === 0) {
       return { min: undefined, max: undefined };
     }
@@ -128,14 +141,14 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
   const chartPadding = parseFloat(config.chartPadding || '10');
   const banding = config.banding !== false; // Default to true
   const bandingColor = config.bandingColor || '#f0f0f0';
-  const xAxisFontSize = parseInt(config.xAxisFontSize || '12', 10);
-  const xAxisFontColor = config.xAxisFontColor || '#333';
-  const xAxisBold = config.xAxisBold === true;
-  const yAxisFontSize = parseInt(config.yAxisFontSize || '12', 10);
-  const yAxisFontColor = config.yAxisFontColor || '#333';
-  const yAxisBold = config.yAxisBold === true;
+  const attributeAxisFontSize = parseInt(config.attributeAxisFontSize || '12', 10);
+  const attributeAxisFontColor = config.attributeAxisFontColor || '#333';
+  const attributeAxisBold = config.attributeAxisBold === true;
+  const measureAxisFontSize = parseInt(config.measureAxisFontSize || '12', 10);
+  const measureAxisFontColor = config.measureAxisFontColor || '#333';
+  const measureAxisBold = config.measureAxisBold === true;
   const gridLines = config.gridLines !== false; // Default to true
-  const gridLineColor = config.gridLineColor || yAxisFontColor;
+  const gridLineColor = config.gridLineColor || measureAxisFontColor;
 
   // Container ref to get actual dimensions for responsive truncation
   const containerRef = useRef<HTMLDivElement>(null);
@@ -179,7 +192,7 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
       
       // Each character takes roughly fontSize pixels vertically
       // Add small buffer for spacing and ellipsis
-      const pixelsPerChar = xAxisFontSize * 1.1;
+      const pixelsPerChar = attributeAxisFontSize * 1.1;
       maxCharsPerCategory = Math.floor(maxLabelHeight / pixelsPerChar);
       
       // Set reasonable bounds for vertical labels
@@ -190,7 +203,7 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
     } else {
       // For horizontal (0°) labels: use width-based calculation
       const availableWidthPercent = 100 - (chartPadding * 2);
-      const pixelsPerChar = xAxisFontSize * 0.65;
+      const pixelsPerChar = attributeAxisFontSize * 0.65;
       const effectiveWidth = containerWidth * (availableWidthPercent / 100);
       const pixelsPerCategory = effectiveWidth / numCategories;
       maxCharsPerCategory = Math.floor((pixelsPerCategory * 1.10) / pixelsPerChar);
@@ -207,36 +220,38 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
       }
       return value;
     };
-  }, [categories.length, attributeLabelRotation, xAxisFontSize, chartPadding, containerWidth, containerHeight]);
+  }, [categories.length, attributeLabelRotation, attributeAxisFontSize, chartPadding, containerWidth, containerHeight]);
 
   // ECharts configuration option
   const option: EChartsOption = useMemo(() => {
     return {
       animation: true,
-      animationDuration: 2000,
-      animationEasing: 'cubicOut',
+      animationDuration: 1200,
+      animationEasing: 'elasticOut',
+      animationDelay: (idx: number) => idx * 50,
       tooltip: {
         trigger: 'axis',
         axisPointer: {
           type: 'shadow',
         },
         formatter: (params: any) => {
-          // Handle x-axis label tooltip - show full untruncated text
+          // Handle attribute axis label tooltip - show full untruncated text
+          // In vertical mode: attribute axis is xAxis, in horizontal mode: attribute axis is yAxis
+          const attributeAxisType = isHorizontal ? 'yAxis' : 'xAxis';
+          
           if (params && Array.isArray(params) && params.length > 0) {
             const firstParam = params[0];
-            if (firstParam.componentType === 'xAxis' && firstParam.componentSubType === 'category') {
-              // Get original untruncated label from categories array
+            if (firstParam.componentType === attributeAxisType && firstParam.componentSubType === 'category') {
               const categoryIndex = firstParam.dataIndex || 0;
               return categories[categoryIndex] || '';
             }
-            // If it's an array with series data, use the first param (boxplot)
             if (firstParam.componentType === 'series' && firstParam.seriesType === 'boxplot') {
               params = firstParam;
             }
           }
           
-          // Handle single x-axis param
-          if (params && params.componentType === 'xAxis' && params.componentSubType === 'category') {
+          // Handle single attribute axis param
+          if (params && params.componentType === attributeAxisType && params.componentSubType === 'category') {
             const categoryIndex = params.dataIndex || 0;
             return categories[categoryIndex] || '';
           }
@@ -247,14 +262,11 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
           }
 
           // For ECharts boxplot, params.value should be the array [min, Q1, median, Q3, max]
-          // Try multiple ways to extract the data to be robust
           let dataValue: [number, number, number, number, number] | null = null;
           
-          // First try: params.value (most common for boxplot)
           if (Array.isArray(params.value) && params.value.length === 5) {
             dataValue = params.value as [number, number, number, number, number];
           }
-          // Second try: params.data (if data is structured as objects)
           else if (params.data) {
             if (Array.isArray(params.data.value) && params.data.value.length === 5) {
               dataValue = params.data.value as [number, number, number, number, number];
@@ -262,7 +274,6 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
               dataValue = params.data as [number, number, number, number, number];
             }
           }
-          // Third try: Get from our data array using dataIndex
           if (!dataValue && typeof params.dataIndex === 'number' && params.dataIndex >= 0 && boxplotValues[params.dataIndex]) {
             const value = boxplotValues[params.dataIndex];
             if (Array.isArray(value) && value.length === 5) {
@@ -270,25 +281,21 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
             }
           }
 
-          // If we still don't have valid data, return empty
           if (!dataValue) {
             return '';
           }
 
           const [min, q1, median, q3, max] = dataValue;
           
-          // Get FULL untruncated attribute name from categories array
           const categoryIndex = typeof params.dataIndex === 'number' ? params.dataIndex : 0;
           const attributeName = categories[categoryIndex] || params.name || '';
 
-          // Format each value using the provided formatter
           const formattedMin = formatValue(min);
           const formattedQ1 = formatValue(q1);
           const formattedMedian = formatValue(median);
           const formattedQ3 = formatValue(q3);
           const formattedMax = formatValue(max);
 
-          // Build tooltip HTML with one row per statistic
           return `
             <div style="padding: 8px; max-width: 300px;">
               <div style="font-weight: bold; margin-bottom: 6px; border-bottom: 1px solid #ccc; padding-bottom: 4px; word-wrap: break-word;">
@@ -308,67 +315,120 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
       grid: {
         left: `${chartPadding}%`,
         right: `${chartPadding}%`,
-        bottom: attributeLabelRotation === 90 ? '15%' : '8%',
+        bottom: attributeLabelRotation === 90 && !isHorizontal ? '15%' : '8%',
         top: `${chartPadding}%`,
         containLabel: true,
       },
-      xAxis: {
-        type: 'category',
-        data: categories,
-        boundaryGap: [0.15, 0.15], // Improved spacing between categories
-        nameGap: attributeLabelRotation === 90 ? 10 : 30,
-        splitArea: {
-          show: false,
-        },
-        splitLine: {
-          show: false,
-        },
-        axisLabel: {
-          rotate: attributeLabelRotation,
-          interval: 0, // Show all labels
-          fontSize: xAxisFontSize,
-          color: xAxisFontColor,
-          fontWeight: xAxisBold ? 'bold' : 'normal',
-          // Smart truncation that considers available space per category
-          formatter: createSmartTruncationFormatter,
-          overflow: 'truncate',
-          // Increased margin for better spacing between labels
-          margin: attributeLabelRotation === 90 ? 10 : 8,
-        },
-        // Add tooltip for x-axis labels
-        triggerEvent: true,
-      },
-      yAxis: {
-        type: 'value',
-        name: '', // Remove title
-        nameTextStyle: {
-          fontSize: yAxisFontSize,
-          color: yAxisFontColor,
-        },
-        splitArea: {
-          show: banding,
-          areaStyle: {
-            color: [bandingColor, 'transparent'],
+      // Conditionally swap axes based on orientation
+      ...(isHorizontal ? {
+        // HORIZONTAL: Attribute axis is Y (vertical), Measure axis is X (horizontal)
+        yAxis: {
+          type: 'category',
+          data: categories,
+          boundaryGap: [0.15, 0.15],
+          nameGap: attributeLabelRotation === 90 ? 10 : 30,
+          splitArea: {
+            show: false,
           },
-        },
-        splitLine: {
-          show: gridLines,
-          lineStyle: {
-            color: gridLineColor,
-            width: 1,
+          splitLine: {
+            show: false,
           },
+          axisLabel: {
+            rotate: attributeLabelRotation,
+            interval: 0,
+            fontSize: attributeAxisFontSize,
+            color: attributeAxisFontColor,
+            fontWeight: attributeAxisBold ? 'bold' : 'normal',
+            formatter: createSmartTruncationFormatter,
+            overflow: 'truncate',
+            margin: attributeLabelRotation === 90 ? 10 : 8,
+          },
+          triggerEvent: true,
         },
-        axisLabel: {
-          fontSize: yAxisFontSize,
-          color: yAxisFontColor,
-          fontWeight: yAxisBold ? 'bold' : 'normal',
+        xAxis: {
+          type: 'value',
+          name: '',
+          nameTextStyle: {
+            fontSize: measureAxisFontSize,
+            color: measureAxisFontColor,
+          },
+          splitArea: {
+            show: banding,
+            areaStyle: {
+              color: [bandingColor, 'transparent'],
+            },
+          },
+          splitLine: {
+            show: gridLines,
+            lineStyle: {
+              color: gridLineColor,
+              width: 1,
+            },
+          },
+          axisLabel: {
+            fontSize: measureAxisFontSize,
+            color: measureAxisFontColor,
+            fontWeight: measureAxisBold ? 'bold' : 'normal',
+          },
+          min: measureAxisConfig.min,
+          max: measureAxisConfig.max,
+          scale: false,
         },
-        // Set min/max with calculated padding to ensure all whiskers are visible
-        // The padding is minimal to avoid excessive blank space
-        min: yAxisConfig.min,
-        max: yAxisConfig.max,
-        scale: false, // Don't use log scale, keep linear
-      },
+      } : {
+        // VERTICAL: Attribute axis is X (horizontal), Measure axis is Y (vertical)
+        xAxis: {
+          type: 'category',
+          data: categories,
+          boundaryGap: [0.15, 0.15],
+          nameGap: attributeLabelRotation === 90 ? 10 : 30,
+          splitArea: {
+            show: false,
+          },
+          splitLine: {
+            show: false,
+          },
+          axisLabel: {
+            rotate: attributeLabelRotation,
+            interval: 0,
+            fontSize: attributeAxisFontSize,
+            color: attributeAxisFontColor,
+            fontWeight: attributeAxisBold ? 'bold' : 'normal',
+            formatter: createSmartTruncationFormatter,
+            overflow: 'truncate',
+            margin: attributeLabelRotation === 90 ? 10 : 8,
+          },
+          triggerEvent: true,
+        },
+        yAxis: {
+          type: 'value',
+          name: '',
+          nameTextStyle: {
+            fontSize: measureAxisFontSize,
+            color: measureAxisFontColor,
+          },
+          splitArea: {
+            show: banding,
+            areaStyle: {
+              color: [bandingColor, 'transparent'],
+            },
+          },
+          splitLine: {
+            show: gridLines,
+            lineStyle: {
+              color: gridLineColor,
+              width: 1,
+            },
+          },
+          axisLabel: {
+            fontSize: measureAxisFontSize,
+            color: measureAxisFontColor,
+            fontWeight: measureAxisBold ? 'bold' : 'normal',
+          },
+          min: measureAxisConfig.min,
+          max: measureAxisConfig.max,
+          scale: false,
+        },
+      }),
       series: [
         {
           name: 'boxplot',
@@ -397,9 +457,11 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
   }, [
     categories,
     boxplotValues,
-    yAxisName,
+    measureAxisName,
     formatValue,
-    yAxisConfig,
+    measureAxisConfig,
+    orientation,
+    isHorizontal,
     attributeLabelRotation,
     lineThickness,
     boxFillColor,
@@ -407,12 +469,12 @@ const BoxPlotChart: React.FC<BoxPlotChartProps> = ({
     chartPadding,
     banding,
     bandingColor,
-    xAxisFontSize,
-    xAxisFontColor,
-    xAxisBold,
-    yAxisFontSize,
-    yAxisFontColor,
-    yAxisBold,
+    attributeAxisFontSize,
+    attributeAxisFontColor,
+    attributeAxisBold,
+    measureAxisFontSize,
+    measureAxisFontColor,
+    measureAxisBold,
     gridLines,
     gridLineColor,
     createSmartTruncationFormatter,

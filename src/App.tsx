@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import React, { useMemo } from 'react';
 import BoxPlotChart, { BoxPlotDataPoint } from './components/BoxPlotChart';
 import './App.css';
 import {
@@ -62,6 +62,15 @@ client.config.configureEditorPanel([
   // Formatting section
   { name: 'formattingGroup', type: 'group', label: 'Formatting' },
   {
+    name: 'orientation',
+    type: 'radio',
+    source: 'formattingGroup',
+    label: 'Chart Orientation',
+    values: ['vertical', 'horizontal'],
+    defaultValue: 'vertical',
+    singleLine: true,
+  },
+  {
     name: 'attributeLabelRotation',
     type: 'radio',
     source: 'formattingGroup',
@@ -112,45 +121,45 @@ client.config.configureEditorPanel([
     label: 'Banding Color',
   },
   {
-    name: 'xAxisFontSize',
+    name: 'attributeAxisFontSize',
     type: 'text',
     source: 'formattingGroup',
-    label: 'X Axis Font Size',
+    label: 'Attribute Axis Font Size',
     placeholder: '12',
     defaultValue: '12',
   },
   {
-    name: 'xAxisFontColor',
+    name: 'attributeAxisFontColor',
     type: 'color',
     source: 'formattingGroup',
-    label: 'X Axis Font Color',
+    label: 'Attribute Axis Font Color',
   },
   {
-    name: 'xAxisBold',
+    name: 'attributeAxisBold',
     type: 'toggle',
     source: 'formattingGroup',
-    label: 'Bold X Axis Labels',
+    label: 'Bold Attribute Axis Labels',
     defaultValue: false,
   },
   {
-    name: 'yAxisFontSize',
+    name: 'measureAxisFontSize',
     type: 'text',
     source: 'formattingGroup',
-    label: 'Y Axis Font Size',
+    label: 'Measure Axis Font Size',
     placeholder: '12',
     defaultValue: '12',
   },
   {
-    name: 'yAxisFontColor',
+    name: 'measureAxisFontColor',
     type: 'color',
     source: 'formattingGroup',
-    label: 'Y Axis Font Color',
+    label: 'Measure Axis Font Color',
   },
   {
-    name: 'yAxisBold',
+    name: 'measureAxisBold',
     type: 'toggle',
     source: 'formattingGroup',
-    label: 'Bold Y Axis Labels',
+    label: 'Bold Measure Axis Labels',
     defaultValue: false,
   },
   {
@@ -187,6 +196,7 @@ interface BoxPlotConfig {
   quartile1?: string;
   quartile2?: string;
   // Formatting options
+  orientation?: string;
   attributeLabelRotation?: string;
   boxFillColor?: string;
   lineColor?: string;
@@ -194,12 +204,12 @@ interface BoxPlotConfig {
   chartPadding?: string;
   banding?: boolean;
   bandingColor?: string;
-  xAxisFontSize?: string;
-  xAxisFontColor?: string;
-  xAxisBold?: boolean;
-  yAxisFontSize?: string;
-  yAxisFontColor?: string;
-  yAxisBold?: boolean;
+  attributeAxisFontSize?: string;
+  attributeAxisFontColor?: string;
+  attributeAxisBold?: boolean;
+  measureAxisFontSize?: string;
+  measureAxisFontColor?: string;
+  measureAxisBold?: boolean;
   gridLines?: boolean;
   gridLineColor?: string;
 }
@@ -328,8 +338,8 @@ function App() {
     return (value: number) => value.toLocaleString();
   }, [columnInfo, config.median, config.minValue, config.maxValue]);
 
-  // Get Y-axis label from column name (use median column as default)
-  const yAxisName = useMemo(() => {
+  // Get measure axis label from column name (use median column as default)
+  const measureAxisName = useMemo(() => {
     if (config.median && columnInfo[config.median]) {
       return columnInfo[config.median].name;
     }
@@ -366,7 +376,7 @@ function App() {
     <div style={{ height: '100%', width: '100%' }}>
       <BoxPlotChart
         data={boxplotData}
-        yAxisName={yAxisName}
+        measureAxisName={measureAxisName}
         formatValue={formatValue}
         config={config}
       />
@@ -375,4 +385,3 @@ function App() {
 }
 
 export default App;
-
